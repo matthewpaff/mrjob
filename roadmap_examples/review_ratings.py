@@ -18,13 +18,21 @@ class ReviewRatings(MRJob):
         except (ValueError, TypeError, KeyError, OverflowError):
             self.increment_counter("input", "invalid_review", 1)
             return
-        yield business_id, rating
+        yield business_id, (rating, 1)
 
-    def reducer(self, business_id, ratings):
+    @staticmethod
+    def sum_counts(values):
         total, count = 0.0, 0
-        for rating in ratings:
-            total += rating
-            count += 1
+        for subtotal, occurrences in values:
+            total += subtotal
+            count += occurrences
+        return total, count
+
+    def combiner(self, business_id, values):
+        yield business_id, self.sum_counts(values)
+
+    def reducer(self, business_id, values):
+        total, count = self.sum_counts(values)
         yield business_id, total / count
 
 if __name__ == "__main__":
